@@ -7,6 +7,16 @@ import shutil
 import json
 from tqdm import tqdm
 
+# Print help if --help or -h or ? is passed as an argument
+if "-h" in sys.argv or "--help" in sys.argv or "?" in sys.argv:
+    print("Usage: appcenter-download-latest-release.py [--install]")
+    print("Downloads the latest release from AppCenter and optionally starts the installer.")
+    print("The script requires a file named appcenter-secrets.json in the same directory as the script.")
+    print("Options:")
+    print("--install: Start the installer after the download is complete.")
+    print("-h, --help, ?: Print this help message.")
+    sys.exit(0)
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 settings_file_path = os.path.join(current_dir, 'appcenter-secrets.json')
 
@@ -60,23 +70,40 @@ try:
 
     # Prompt user to confirm download
     answer = input(f"Do you want to download version {version} uploaded at {uploaded_at}? (Y/N) ")
-    if answer.lower() in ["n", "no"]:
+    if answer.lower() not in ["y", "yes"]:
+        print("Answer was not 'Y' or 'Yes'. Aborting.")
         sys.exit(0)
     
+    # Prompt the user if the file already exists
+    if os.path.exists(output_file):
+        answer = input(f"File {output_file} already exists. Do you want to overwrite it? (Y/N) ")
+        if answer.lower() not in ["y", "yes"]:
+            print("Answer was not 'Y' or 'Yes'. Aborting.")
+            sys.exit(0)
+
     with requests.get(download_url, headers=headers, stream=True) as r:
         total_length = int(r.headers.get("Content-Length"))
 
-        with tqdm.wrapattr(r.raw, "read", total=total_length, desc="") as raw:
+        with tqdm.wrapattr(r.raw, "read", total=total_length, desc="", ncols=40) as raw:
             with open(output_file, "wb") as output:
                 shutil.copyfileobj(raw, output)
 
     # Unzip the downloaded file
     if file_extension == 'zip':
-        unzip_path = os.path.join(download_path, "Unzipped")
+        unzip_path = os.path.join(download_path, f"{version} Unzipped")
         with zipfile.ZipFile(output_file, "r") as zip_ref:
-            zip_ref.extractall(unzip_path)
+            print("Unzipping the downloaded file...")
+            total_files = len(zip_ref.namelist())
+            with tqdm(total=total_files, desc="Unzipping", ncols=40) as pbar:
+                for file in zip_ref.namelist():
+                    zip_ref.extract(file, unzip_path)
+                    pbar.update(1)
+            print("Done.")
 
-    # Start the installer
+    # Start the installer if the --install flag is set
+    if "--install" not in sys.argv:
+        sys.exit(0)
+
     installer_path = next(
         (
             os.path.join(root, file)
