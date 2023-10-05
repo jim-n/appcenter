@@ -84,7 +84,7 @@ try:
     with requests.get(download_url, headers=headers, stream=True) as r:
         total_length = int(r.headers.get("Content-Length"))
 
-        with tqdm.wrapattr(r.raw, "read", total=total_length, desc="", ncols=40) as raw:
+        with tqdm.wrapattr(r.raw, "read", total=total_length, desc="", dynamic_ncols=True, ncols=80) as raw:
             with open(output_file, "wb") as output:
                 shutil.copyfileobj(raw, output)
 
@@ -94,7 +94,7 @@ try:
         with zipfile.ZipFile(output_file, "r") as zip_ref:
             print("Unzipping the downloaded file...")
             total_files = len(zip_ref.namelist())
-            with tqdm(total=total_files, desc="Unzipping", ncols=40) as pbar:
+            with tqdm(total=total_files, desc="Unzipping", dynamic_ncols=True, ncols=80) as pbar:
                 for file in zip_ref.namelist():
                     zip_ref.extract(file, unzip_path)
                     pbar.update(1)
