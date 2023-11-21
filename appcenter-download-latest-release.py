@@ -54,7 +54,7 @@ try:
     response = requests.get(releases_url, headers=headers)
     response.raise_for_status()
     releases = response.json()
-    assert releases, "Releas list is empty"
+    assert releases, "Release list is empty"
     release_id = max(releases, key=lambda x: x['id'])['id']
     uploaded_at = max(releases, key=lambda x: x['id'])['uploaded_at']
 
@@ -84,7 +84,7 @@ try:
     with requests.get(download_url, headers=headers, stream=True) as r:
         total_length = int(r.headers.get("Content-Length"))
 
-        with tqdm.wrapattr(r.raw, "read", total=total_length, desc="", dynamic_ncols=True, ncols=80) as raw:
+        with tqdm.wrapattr(r.raw, "read", total=total_length, desc="Downloading", ncols=80) as raw:
             with open(output_file, "wb") as output:
                 shutil.copyfileobj(raw, output)
 
@@ -94,7 +94,7 @@ try:
         with zipfile.ZipFile(output_file, "r") as zip_ref:
             print("Unzipping the downloaded file...")
             total_files = len(zip_ref.namelist())
-            with tqdm(total=total_files, desc="Unzipping", dynamic_ncols=True, ncols=80) as pbar:
+            with tqdm(total=total_files, desc="Unzipping", ncols=80) as pbar:
                 for file in zip_ref.namelist():
                     zip_ref.extract(file, unzip_path)
                     pbar.update(1)
@@ -103,6 +103,9 @@ try:
     # Start the installer if the --install flag is set
     if "--install" not in sys.argv:
         sys.exit(0)
+
+    # Run the installer with command line arguments if provided
+    installer_args = sys.argv[sys.argv.index("--install") + 1] if "--install" in sys.argv and len(sys.argv) > sys.argv.index("--install") + 1 else None
 
     installer_path = next(
         (
@@ -113,8 +116,14 @@ try:
         ),
         None,
     )
+
+    # Add installer_args to the installer_path if provided
+    if installer_args:
+        installer_path = f"{installer_path} {installer_args}"
+
     if installer_path:
-        print("Starting the installer...")
+        print("Starting the installer with the following command:")
+        print(installer_path)
         subprocess.run(installer_path, check=True)
         print("Done.")
     else:
